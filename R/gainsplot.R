@@ -15,8 +15,8 @@ gainsplot <- function(...,label.var, bin = 10) {
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
     pred.var <- pred.vars[[i]]
-    pred <- prediction(pred.var,factor(label.var))
-    gain <- performance(pred, "tpr", "rpp")
+    pred <- ROCR::prediction(pred.var,factor(label.var))
+    gain <- ROCR::performance(pred, "tpr", "rpp")
     gains.data <- tibble(Model = i, 
                          Percent.buyers=as.numeric(unlist(gain@y.values)),
                          Percent.customers=as.numeric(unlist(gain@x.values))) %>%
