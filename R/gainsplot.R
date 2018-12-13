@@ -22,7 +22,7 @@ gainsplot <- function(...,label.var, bin = 10) {
                          Percent.customers=as.numeric(unlist(gain@x.values))) %>%
       mutate(Percent.buyers=Percent.buyers*100, 
              Percent.customers=Percent.customers*100)
-    auc <- tibble(auc = round(unlist(performance(pred, measure = "auc")@y.values),
+    auc <- tibble(auc = round(unlist(ROCR::performance(pred, measure = "auc")@y.values),
                               3))
     print(paste0("AUC of model ",i,": ", auc$auc[1]))
     auc.build <- bind_rows(auc.build, auc)
