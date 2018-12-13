@@ -7,15 +7,15 @@
 #' @keywords gains, auc
 #' @export
 #' @examples
-#' gainsplot(data = bbb, label.var = buyer, logit1$fitted.values, logit2$fitted.values, logit3$fitted.values, )
+#' gainsplot(logit1$fitted.values, logit2$fitted.values, logit3$fitted.values, label.var = bbb$buyer)
 
-gainsplot <- function(data = .data,label.var,..., bin = 10) {
+gainsplot <- function(...,label.var, bin = 10) {
   pred.vars <- tibble(...)
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
     pred.var <- pred.vars[[i]]
-    pred <- ROCR::prediction(pred.var,factor(.data$label.var))
+    pred <- ROCR::prediction(pred.var,factor(label.var))
     gain <- ROCR::performance(pred, "tpr", "rpp")
     gains.data <- tibble(Model = i, 
                          Percent.buyers=as.numeric(unlist(gain@y.values)),
