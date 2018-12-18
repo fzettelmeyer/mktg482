@@ -9,25 +9,25 @@
 #' @examples
 #' gainsplot(label.var = bbb$buyer, logit1$fitted.values, rf$fitted.values, nn$fitted.values)
 
-gainsplot2 <- function(label.var,..., bin = 10) {
+gainsplot <- function(label.var,..., bin = 10) {
   pred.vars <- tibble(...)
+  pred.vars
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
     pred.var <- pred.vars[[i]]
     pred <- ROCR::prediction(pred.var,factor(label.var))
     gain <- ROCR::performance(pred, "tpr", "rpp")
-    gains.data <- tibble(Model = i, 
+    gains.data <- tibble(Model = colnames(pred.vars)[i], 
                          Percent.buyers=as.numeric(unlist(gain@y.values)),
                          Percent.customers=as.numeric(unlist(gain@x.values))) %>%
       mutate(Percent.buyers=Percent.buyers*100, 
              Percent.customers=Percent.customers*100)
-      auc <- bind_cols(model = i, auc = 
-                         round(unlist(ROCR::performance(pred, measure = "auc")@y.values),3))
+      auc <- bind_cols(model = colnames(pred.vars)[i], 
+                       auc =  round(unlist(ROCR::performance(pred, measure = "auc")@y.values),3))
     auc.build <- bind_rows(auc.build, auc)
     gains.data.build <- bind_rows(gains.data.build, gains.data)
   }
-  gains.data.build <- mutate(gains.data.build, Model = factor(Model))
   no.model.data <- tbl_df(data.frame(Percent.buyers=c(0,100),
                                      Percent.customers=c(0,100)))
   print(ggplot() + 
