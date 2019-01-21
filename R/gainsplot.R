@@ -37,5 +37,6 @@ gainsplot <- function(label.var,..., bin = 10) {
                     aes(Percent.customers,Percent.buyers), linetype=3) +
           labs(x="Percent Customers",
                y="Percent Buyers"))
+  auc.build <- tbl_df(data.frame(auc.build))
   return(auc.build)
 }
