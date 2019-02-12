@@ -10,11 +10,17 @@
 
 gainsplot2 <- function(label.var,...) {
   arglist <- list(...)
-  for (i in 1:length(arglist)){
+  
+  for (i in 1:length(arglist)) {
+    if (class(arglist[[i]]) == "matrix") {
+      if(min(dim(arglist[[i]])) >1 ){
+        stop("One of the predictions is matrix with more than one column")
+      }
+    }
     arglist[[i]] <- as.vector(arglist[[i]])
   }
   
-  pred.vars <- as.tibble(do.call(cbind, arglist))  
+  pred.vars <- as.tibble(do.call(cbind, arglist))
   
   for (i in 3:length(match.call())){
     names(pred.vars)[i-2] <- paste(match.call()[[i]])
@@ -46,5 +52,6 @@ gainsplot2 <- function(label.var,...) {
           labs(x="Percent Customers",
                y="Percent Buyers"))
   auc.build <- tbl_df(data.frame(auc.build))
+  #   return(arglist)
   return(auc.build)
 }
