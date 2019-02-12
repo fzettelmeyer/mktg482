@@ -9,14 +9,9 @@
 #' @examples
 #' gainsplot(label.var = bbb$buyer, logit1$fitted.values, rf$fitted.values, nn$fitted.values)
 
-<<<<<<< HEAD
-gainsplot <- function(...,label.var, bin = 10) {
-  pred.vars <- as_tibble(...)
-=======
 gainsplot <- function(label.var,..., bin = 10) {
-  pred.vars <- tibble(...)
+  pred.vars <- as_tibble(...)
   pred.vars
->>>>>>> 92deebd77ebfc43c30695e0b20d2c3b6b0b35cf3
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
