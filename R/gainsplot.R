@@ -1,34 +1,38 @@
 #' A function to plot a gains curve
 #'
 #' This function allows you to compare model performace by comparing the gains curves of models.
-#' @param score1, score 2, ... (required)
 #' @param label (required)
+#' @param score1, score 2, ... (at least 1 required)
 #' @param bin (defaults to 10) 
 #' @keywords gains, auc
 #' @export
 #' @examples
-#' gainsplot(logit1$fitted.values, logit2$fitted.values, logit3$fitted.values, label.var = bbb$buyer)
+#' gainsplot(label.var = bbb$buyer, logit1$fitted.values, rf$fitted.values, nn$fitted.values)
 
+<<<<<<< HEAD
 gainsplot <- function(...,label.var, bin = 10) {
   pred.vars <- as_tibble(...)
+=======
+gainsplot <- function(label.var,..., bin = 10) {
+  pred.vars <- tibble(...)
+  pred.vars
+>>>>>>> 92deebd77ebfc43c30695e0b20d2c3b6b0b35cf3
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
     pred.var <- pred.vars[[i]]
     pred <- ROCR::prediction(pred.var,factor(label.var))
     gain <- ROCR::performance(pred, "tpr", "rpp")
-    gains.data <- tibble(Model = i, 
+    gains.data <- tibble(Model = colnames(pred.vars)[i], 
                          Percent.buyers=as.numeric(unlist(gain@y.values)),
                          Percent.customers=as.numeric(unlist(gain@x.values))) %>%
       mutate(Percent.buyers=Percent.buyers*100, 
              Percent.customers=Percent.customers*100)
-    auc <- tibble(auc = round(unlist(ROCR::performance(pred, measure = "auc")@y.values),
-                              3))
-    print(paste0("AUC of model ",i,": ", auc$auc[1]))
+      auc <- bind_cols(model = colnames(pred.vars)[i], 
+                       auc =  round(unlist(ROCR::performance(pred, measure = "auc")@y.values),3))
     auc.build <- bind_rows(auc.build, auc)
     gains.data.build <- bind_rows(gains.data.build, gains.data)
   }
-  gains.data.build <- mutate(gains.data.build, Model = factor(Model))
   no.model.data <- tbl_df(data.frame(Percent.buyers=c(0,100),
                                      Percent.customers=c(0,100)))
   print(ggplot() + 
@@ -38,5 +42,6 @@ gainsplot <- function(...,label.var, bin = 10) {
                     aes(Percent.customers,Percent.buyers), linetype=3) +
           labs(x="Percent Customers",
                y="Percent Buyers"))
+  auc.build <- tbl_df(data.frame(auc.build))
   return(auc.build)
 }
