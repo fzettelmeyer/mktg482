@@ -10,7 +10,7 @@
 #' gainsplot(logit1$fitted.values, logit2$fitted.values, logit3$fitted.values, label.var = bbb$buyer)
 
 gainsplot <- function(...,label.var, bin = 10) {
-  pred.vars <- tibble(...)
+  pred.vars <- as_tibble(...)
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
