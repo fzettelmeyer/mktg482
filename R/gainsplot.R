@@ -8,7 +8,7 @@
 #' @examples
 #' gainsplot(logit1$fitted.values, rf$fitted.values, nn$fitted.values, label.var = bbb$buyer)
 
-gainsplot2 <- function(label.var,...) {
+gainsplot <- function(label.var,...) {
   arglist <- list(...)
   
   for (i in 1:length(arglist)) {
