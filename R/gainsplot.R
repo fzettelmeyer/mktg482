@@ -20,17 +20,18 @@ gainsplot <- function(label.var,...) {
     arglist[[i]] <- as.vector(arglist[[i]])
   }
   
-  pred.vars <- as.tibble(do.call(cbind, arglist))
+  pred.vars <- as_tibble(do.call(cbind, arglist))
   
-  for (i in 3:length(match.call())){
-    names(pred.vars)[i-2] <- paste(match.call()[[i]])
+  for (i in 3:length(match.call())) {
+    names(pred.vars)[i - 2] <- deparse(match.call()[[i]])
   }
+  
   
   gains.data.build <- NULL
   auc.build <- NULL
   for (i in seq_along(pred.vars)) {
     pred.var <- pred.vars[[i]]
-    pred <- ROCR::prediction(pred.var,factor(label.var))
+    pred <- ROCR::prediction(pred.var, factor(label.var))
     gain <- ROCR::performance(pred, "tpr", "rpp")
     gains.data <- tibble(Model = colnames(pred.vars)[i],
                          Percent.buyers=as.numeric(unlist(gain@y.values)),
