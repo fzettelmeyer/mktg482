@@ -1,7 +1,7 @@
 #' A function to plot a gains curve
 #'
 #' This function allows you to compare model performace by comparing the gains curves of models.
-#' @param label (required)
+#' @param label.var (required)
 #' @param score1, score 2, ... (at least 1 required)
 #' @keywords gains, auc
 #' @export
@@ -52,6 +52,5 @@ gainsplot2 <- function(label.var,...) {
           labs(x="Percent Customers",
                y="Percent Buyers"))
   auc.build <- tbl_df(data.frame(auc.build))
-  #   return(arglist)
   return(auc.build)
 }
