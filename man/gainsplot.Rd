@@ -4,20 +4,18 @@
 \alias{gainsplot}
 \title{A function to plot a gains curve}
 \usage{
-gainsplot(..., label.var, bin = 10)
+gainsplot(label.var, ...)
 }
 \arguments{
-\item{bin}{(defaults to 10)}
+\item{label.var}{(required)}
 
-\item{score1, }{score 2, ... (required)}
-
-\item{label}{(required)}
+\item{score1, }{score 2, ... (at least 1 required)}
 }
 \description{
 This function allows you to compare model performace by comparing the gains curves of models.
 }
 \examples{
-gainsplot(logit1$fitted.values, logit2$fitted.values, logit3$fitted.values, label.var = bbb$buyer)
+gainsplot(logit1$fitted.values, rf$fitted.values, nn$fitted.values, label.var = bbb$buyer)
 }
 \keyword{auc}
 \keyword{gains,}
