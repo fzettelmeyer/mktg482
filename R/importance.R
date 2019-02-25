@@ -45,12 +45,15 @@ imp.glm.glm <- function(modelFit) {
            factor=ifelse(fac==1, "Yes", "No")) %>%
     left_join(sd_merge, by="variable") %>%
     mutate(var_imp=exp(abs(Estimate*sd)),
-           OR_std=ifelse(factor=="Yes",exp(Estimate), exp(Estimate*sd))) %>%
+    	   OR=exp(Estimate),
+           OR_std=exp(Estimate*sd)) %>%
     arrange(-var_imp) %>%
+    mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
+           OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     mutate(temp=ifelse(Estimate>=0, (OR_std-1)*100, - (1-OR_std)*100),
            OR_std_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR_std, OR_std_perc) %>%
+    select(variable, var_imp, p_value, factor, OR, OR_perc, OR_std, OR_std_perc) %>%
     mutate(p_value=round(p_value,3))
 
   options(scipen=999, digits =3)
@@ -89,27 +92,29 @@ imp.glm.train <- function(modelFit) {
     mutate(fac = replace_na(fac, 0),
            factor=ifelse(fac==1, "Yes", "No")) %>%
     left_join(sd_merge, by="variable") %>%
-    # mutate(var_imp=exp(abs(Estimate)),
-    #        OR_std=ifelse(factor=="Yes",exp(Estimate/sd), exp(Estimate))) %>%
     mutate(var_imp = case_when(
       scaleFlag == TRUE ~ exp(abs(Estimate)),
       scaleFlag == FALSE ~ exp(abs(Estimate*sd))),
+      OR = case_when(
+        scaleFlag == TRUE ~ exp(Estimate/sd),
+        scaleFlag == FALSE ~ exp(Estimate)),
       OR_std = case_when(
-        scaleFlag == TRUE ~ ifelse(factor=="Yes",exp(Estimate/sd), exp(Estimate)),
-        scaleFlag == FALSE ~ ifelse(factor=="Yes",exp(Estimate), exp(Estimate*sd))
-      )
-    ) %>%
+        scaleFlag == TRUE ~ exp(Estimate),
+        scaleFlag == FALSE ~ exp(Estimate*sd))
+      ) %>%
     arrange(-var_imp) %>%
+    mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
+           OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     mutate(temp=ifelse(Estimate>=0, (OR_std-1)*100, - (1-OR_std)*100),
            OR_std_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR_std, OR_std_perc) %>%
+    select(variable, var_imp, p_value, factor, OR, OR_perc, OR_std, OR_std_perc) %>%
     mutate(p_value=round(p_value,3))
   options(scipen=999, digits =3)
   return(final_result)
 }
 
-#' A function to to create a new formula after glmnet in caret
+#' A function to create a new formula after glmnet in caret
 #'
 #' This function takes non-zero variables after glmnet and returns a
 #' new formula. If any dummy created from a factor is non-zero, it will
@@ -151,8 +156,36 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
   }
 
   indvars <- c(new_not_factor, new_factor)
+  allvars <- attr(modelFit$terms,"term.labels")
+  removedvars <- setdiff(allvars, indvars)
+  removedvars_disp <- paste(removedvars, collapse=", ")
+  message(paste("glmnet removed variables:", removedvars_disp, sep=" "))
   tmp_newvars3 <- paste(indvars, collapse = "+")
   tmp_depvar <- paste0(all.vars(eval(modelFit$call$form)[[2]]), "~")
   glmnet.fm <- as.formula(paste0(tmp_depvar, tmp_newvars3))
   return(glmnet.fm)
 }
+
+#' A function to create a plot after imp.glm()
+#'
+#' This function takes the dataframe created by imp.glm() and returns a
+#' plot. It will also pass on the dataset, so it can be used in the middle or
+#' the end of a pipe.
+#' @param .data a dataframe created by imp.glm() (can be piped)
+#' @keywords plot variable importance
+#' @export
+#' @return a plot and the unmodified dataframe created by imp.glm()
+#' @examples
+#' imp.glm(modelFit) %>% filter(p_value<0.05) %>% plotimp.glm()
+#' @export
+
+plotimp.glm <- function(.data) {
+  plotdata <- .data %>%
+    mutate(variable=fct_reorder(variable, var_imp))
+
+  print(ggplot(data=plotdata) + geom_col(aes(x = variable, y = var_imp, fill = factor)) +
+  scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
+
+  return(.data)
+}
+

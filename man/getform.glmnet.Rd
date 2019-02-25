@@ -2,7 +2,7 @@
 % Please edit documentation in R/importance.R
 \name{getform.glmnet}
 \alias{getform.glmnet}
-\title{A function to to create a new formula after glmnet in caret}
+\title{A function to create a new formula after glmnet in caret}
 \usage{
 getform.glmnet(modelFit, lambda = modelFit$bestTune$lambda)
 }
