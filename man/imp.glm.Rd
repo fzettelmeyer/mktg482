@@ -16,11 +16,11 @@ imp.glm(modelFit)
 \item{modelFit}{reguired: estimated/trained glm model}
 }
 \value{
-A tibble with variable, var_imp, p_value, factor, OR_std, OR_std_perc
+A tibble with variable, var_imp, p_value, factor, OR_std, OR_sd_perc
 }
 \description{
-This function reports standardized odds ratios and ranks variable by importance
-It takes as inputs models created by glm or caret using glm
+This function reports standardized odds ratios and ranks variable by importance: The odds ratios of continuous variables are standardized to a two standard deviation change of the variable. The odds ratios for factor variables are left unchanged. This follows the procedure suggested by Andrew Gelman in "Scaling regression inputs by dividing by two standard deviations," Statistics in Medicine (2008), Vol. 27, pp. 2965-2873.
+The function takes as inputs models created by glm or caret using glm
 }
 \section{Methods (by class)}{
 \itemize{

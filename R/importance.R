@@ -1,10 +1,10 @@
 #' A function to report variable importance after glm()
 #'
-#' This function reports standardized odds ratios and ranks variable by importance
-#' It takes as inputs models created by glm or caret using glm
+#' This function reports standardized odds ratios and ranks variable by importance: The odds ratios of continuous variables are standardized to a two standard deviation change of the variable. The odds ratios for factor variables are left unchanged. This follows the procedure suggested by Andrew Gelman in "Scaling regression inputs by dividing by two standard deviations," Statistics in Medicine (2008), Vol. 27, pp. 2965-2873.
+#' The function takes as inputs models created by glm or caret using glm
 #' @param modelFit reguired: estimated/trained glm model
 #' @keywords variable importance
-#' @return A tibble with variable, var_imp, p_value, factor, OR_std, OR_std_perc
+#' @return A tibble with variable, var_imp, p_value, factor, OR_std, OR_sd_perc
 #' @export
 #' @examples
 #' imp.glm(logit1)
@@ -42,18 +42,19 @@ imp.glm.glm <- function(modelFit) {
     slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
     mutate(fac = replace_na(fac, 0),
-           factor=ifelse(fac==1, "Yes", "No")) %>%
-    left_join(sd_merge, by="variable") %>%
-    mutate(var_imp=exp(abs(Estimate*sd)),
+           factor = ifelse(fac==1, "Yes", "No")) %>%
+    left_join(sd_merge, by = "variable") %>%
+    mutate(var_imp = ifelse(fac==1, exp(abs(Estimate)), exp(abs(Estimate*2*sd))),
     	   OR=exp(Estimate),
-           OR_std=exp(Estimate*sd)) %>%
+           OR_sd=ifelse(fac==1, NA, exp(Estimate*sd))) %>%
     arrange(-var_imp) %>%
     mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
            OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR_std-1)*100, - (1-OR_std)*100),
-           OR_std_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
+    mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
+           OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
+           ) %>%
     rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR, OR_perc, OR_std, OR_std_perc) %>%
+    select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
     mutate(p_value=round(p_value,3))
 
   options(scipen=999, digits =3)
@@ -93,26 +94,28 @@ imp.glm.train <- function(modelFit) {
            factor=ifelse(fac==1, "Yes", "No")) %>%
     left_join(sd_merge, by="variable") %>%
     mutate(var_imp = case_when(
-      scaleFlag == TRUE ~ exp(abs(Estimate)),
-      scaleFlag == FALSE ~ exp(abs(Estimate*sd))),
+      scaleFlag == TRUE ~ ifelse(fac==1, exp(abs(Estimate/sd)), exp(abs(Estimate*2))),
+      scaleFlag == FALSE ~ ifelse(fac==1, exp(abs(Estimate)), exp(abs(Estimate*2*sd)))),
       OR = case_when(
         scaleFlag == TRUE ~ exp(Estimate/sd),
         scaleFlag == FALSE ~ exp(Estimate)),
-      OR_std = case_when(
-        scaleFlag == TRUE ~ exp(Estimate),
-        scaleFlag == FALSE ~ exp(Estimate*sd))
-      ) %>%
+      OR_sd = case_when(
+        scaleFlag == TRUE ~ ifelse(fac==1, NA, exp(Estimate)),
+        scaleFlag == FALSE ~ ifelse(fac==1, NA, exp(Estimate*sd)))
+        ) %>%
     arrange(-var_imp) %>%
     mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
            OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR_std-1)*100, - (1-OR_std)*100),
-           OR_std_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
+    mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
+           OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
+          ) %>%
     rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR, OR_perc, OR_std, OR_std_perc) %>%
+    select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
     mutate(p_value=round(p_value,3))
   options(scipen=999, digits =3)
   return(final_result)
 }
+
 
 #' A function to create a new formula after glmnet in caret
 #'
@@ -185,7 +188,6 @@ plotimp.glm <- function(.data) {
 
   print(ggplot(data=plotdata) + geom_col(aes(x = variable, y = var_imp, fill = factor)) +
   scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
-
   return(.data)
 }
 
