@@ -1,4 +1,4 @@
-#' A function to report variable importance after glm()
+#' A function to report variable importance after glm() or either glm or glmnet through caret
 #'
 #' This function reports standardized odds ratios and ranks variable by importance: The odds ratios of continuous variables are standardized to a two standard deviation change of the variable. The odds ratios for factor variables are left unchanged. This follows the procedure suggested by Andrew Gelman in "Scaling regression inputs by dividing by two standard deviations," Statistics in Medicine (2008), Vol. 27, pp. 2965-2873.
 #' The function takes as inputs models created by glm or caret using glm
@@ -7,37 +7,37 @@
 #' @return A tibble with variable, var_imp, p_value, factor, OR_std, OR_sd_perc
 #' @export
 #' @examples
-#' imp.glm(logit1)
-#' imp.glm(logitFit)
+#' varimp.logistic(logit1)
+#' varimp.logistic(logitFit)
 
-imp.glm <- function(modelFit) {
-  UseMethod("imp.glm", modelFit)
+varimp.logistic <- function(modelFit) {
+  UseMethod("varimp.logistic", modelFit)
 }
 
 #' @export
-#' @describeIn imp.glm Method for glm()
-imp.glm.glm <- function(modelFit) {
+#' @describeIn varimp.logistic Method for glm()
+varimp.logistic.glm <- function(modelFit) {
   if(modelFit$method != "glm.fit") {
-    stop("This function only works when you call glm() or glm through caret")
+    stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
   result <- coef(summary(modelFit))
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
-
+  
   allvars_factor <-
     c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
   allvars_factor2 <-
     paste(allvars_factor, collapse= "|" )
-
+  
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
-
+  
   logit_temp <- glm(modelFit$formula, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
     summarize_all(funs(sd)) %>%
     gather(key = "variable", value = "sd")
-
+  
   final_result <- as_tibble(result, rownames="variable") %>%
     slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
@@ -45,48 +45,68 @@ imp.glm.glm <- function(modelFit) {
            factor = ifelse(fac==1, "Yes", "No")) %>%
     left_join(sd_merge, by = "variable") %>%
     mutate(var_imp = ifelse(fac==1, exp(abs(Estimate)), exp(abs(Estimate*2*sd))),
-    	   OR=exp(Estimate),
+           OR=exp(Estimate),
            OR_sd=ifelse(fac==1, NA, exp(Estimate*sd))) %>%
     arrange(-var_imp) %>%
     mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
            OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
            OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
-           ) %>%
+    ) %>%
     rename(p_value="Pr(>|z|)") %>%
     select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
     mutate(p_value=round(p_value,3))
-
+  
   options(scipen=999, digits =3)
   return(final_result)
 }
 
 #' @export
-#' @describeIn imp.glm Method for glm in caret. This works regardless of whether the data is pre-processed with "scale"
-imp.glm.train <- function(modelFit) {
-  if(modelFit$method != "glm") {
-    stop("This function only works when you call glm() or glm through caret")
+#' @describeIn varimp.logistic Method for either glm or glmnet in caret. This works regardless of whether the data is pre-processed with "scale"
+varimp.logistic.train <- function(modelFit) {
+  if( !(modelFit$method %in% c("glm","glmnet")) ) {
+    stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
-  result <- coef(summary(modelFit$finalModel))
-  tmp_coeffs <- coef(modelFit$finalModel)
-  tmp_newvars <- names(tmp_coeffs)[-1]
-  used.dataframe <- eval(modelFit$call$data)
-
+  
+  if(modelFit$method=="glm"){
+    result <- coef(summary(modelFit$finalModel))
+    tmp_coeffs <- coef(modelFit$finalModel)
+    tmp_newvars <- names(tmp_coeffs)[-1]
+    used.dataframe <- eval(modelFit$call$data)
+  }
+  
+  if(modelFit$method=="glmnet"){
+    tmp.fm <- getform.glmnet(modelFit)
+    tmp.df <- modelFit$trainingData
+    colnames(tmp.df)[1] <- as.character(tmp.fm)[2]
+    tmp.lr <- glm(tmp.fm, data=tmp.df, family=binomial)
+    tmp.coef <- coef(modelFit$finalModel,modelFit$finalModel$lambdaOpt)[names(coef(tmp.lr)),1]
+    tmp.lr$coefficients <- tmp.coef
+    oldmodelFit <- modelFit
+    modelFit <- tmp.lr
+    
+    result <- coef(summary(modelFit))
+    result[,4] <- NA
+    tmp_coeffs <- coef(modelFit)
+    tmp_newvars <- names(tmp_coeffs)[-1]
+    used.dataframe <- eval(modelFit$call$data)
+  }
+  
   allvars_factor <-
     c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
   allvars_factor2 <-
     paste(allvars_factor, collapse= "|" )
-
+  
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
-
+  
   logit_temp <- glm(modelFit$terms, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
     summarize_all(funs(sd)) %>%
     gather(key = "variable", value = "sd")
-
+  
   scaleFlag <- length(modelFit$preProcess$method$scale)>0
-
+  
   final_result <- as_tibble(result, rownames="variable") %>%
     slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
@@ -102,13 +122,13 @@ imp.glm.train <- function(modelFit) {
       OR_sd = case_when(
         scaleFlag == TRUE ~ ifelse(fac==1, NA, exp(Estimate)),
         scaleFlag == FALSE ~ ifelse(fac==1, NA, exp(Estimate*sd)))
-        ) %>%
+    ) %>%
     arrange(-var_imp) %>%
     mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
            OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
     mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
            OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
-          ) %>%
+    ) %>%
     rename(p_value="Pr(>|z|)") %>%
     select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
     mutate(p_value=round(p_value,3))
@@ -138,26 +158,26 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
   tmp_coeffs <- coef(modelFit$finalModel, lambda)
   tmp_newvars <- names(tmp_coeffs[, 1])[which(tmp_coeffs[, 1] != 0)][-1]
   used.dataframe <- eval(modelFit$call$data)
-
+  
   allvars_factor <- enframe(attr(modelFit$terms, "dataClass"), name = "variable", value = "type") %>% filter(type !="numeric") %>% select(variable) %>% unlist %>% unname()
-
+  
   allvars_not_factor <-
     enframe(attr(modelFit$terms, "dataClass"), name = "variable", value = "type") %>% filter(type =="numeric") %>% select(variable) %>% unlist %>% unname()
-
+  
   new_factor <- NULL
   for (i in allvars_factor) {
     temp <- unique(str_extract(tmp_newvars, i))
     temp2 <- temp[!is.na(temp)]
     new_factor <- c(new_factor, temp2)
   }
-
+  
   new_not_factor <- NULL
   for (i in allvars_not_factor) {
     temp <- unique(str_extract(tmp_newvars, i))
     temp2 <- temp[!is.na(temp)]
     new_not_factor <- c(new_not_factor, temp2)
   }
-
+  
   indvars <- c(new_not_factor, new_factor)
   allvars <- attr(modelFit$terms,"term.labels")
   removedvars <- setdiff(allvars, indvars)
@@ -169,25 +189,25 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
   return(glmnet.fm)
 }
 
-#' A function to create a plot after imp.glm()
+#' A function to create a plot after varimp.logistic()
 #'
-#' This function takes the dataframe created by imp.glm() and returns a
+#' This function takes the dataframe created by varimp.logistic() and returns a
 #' plot. It will also pass on the dataset, so it can be used in the middle or
 #' the end of a pipe.
-#' @param .data a dataframe created by imp.glm() (can be piped)
+#' @param .data a dataframe created by varimp.logistic() (can be piped)
 #' @keywords plot variable importance
 #' @export
-#' @return a plot and the unmodified dataframe created by imp.glm()
+#' @return a plot and the unmodified dataframe created by varimp.logistic()
 #' @examples
-#' imp.glm(modelFit) %>% filter(p_value<0.05) %>% plotimp.glm()
+#' varimp.logistic(modelFit) %>% filter(var_imp > 1) %>% varimp.logistic()
 #' @export
 
-plotimp.glm <- function(.data) {
+plot.varimp.logistic <- function(.data) {
   plotdata <- .data %>%
     mutate(variable=fct_reorder(variable, var_imp))
-
+  
   print(ggplot(data=plotdata) + geom_col(aes(x = variable, y = var_imp, fill = factor)) +
-  scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
+          scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
   return(.data)
 }
 
