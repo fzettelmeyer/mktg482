@@ -24,20 +24,20 @@ varimp.logistic.glm <- function(modelFit) {
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
-  
+
   allvars_factor <-
     c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
   allvars_factor2 <-
     paste(allvars_factor, collapse= "|" )
-  
+
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
-  
+
   logit_temp <- glm(modelFit$formula, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
     summarize_all(funs(sd)) %>%
     gather(key = "variable", value = "sd")
-  
+
   final_result <- as_tibble(result, rownames="variable") %>%
     slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
@@ -56,7 +56,7 @@ varimp.logistic.glm <- function(modelFit) {
     rename(p_value="Pr(>|z|)") %>%
     select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
     mutate(p_value=round(p_value,3))
-  
+
   options(scipen=999, digits =3)
   return(final_result)
 }
@@ -67,14 +67,14 @@ varimp.logistic.train <- function(modelFit) {
   if( !(modelFit$method %in% c("glm","glmnet")) ) {
     stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
-  
+
   if(modelFit$method=="glm"){
     result <- coef(summary(modelFit$finalModel))
     tmp_coeffs <- coef(modelFit$finalModel)
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
   }
-  
+
   if(modelFit$method=="glmnet"){
     tmp.fm <- getform.glmnet(modelFit)
     tmp.df <- modelFit$trainingData
@@ -84,29 +84,29 @@ varimp.logistic.train <- function(modelFit) {
     tmp.lr$coefficients <- tmp.coef
     oldmodelFit <- modelFit
     modelFit <- tmp.lr
-    
+
     result <- coef(summary(modelFit))
     result[,4] <- NA
     tmp_coeffs <- coef(modelFit)
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
   }
-  
+
   allvars_factor <-
     c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
   allvars_factor2 <-
     paste(allvars_factor, collapse= "|" )
-  
+
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
-  
+
   logit_temp <- glm(modelFit$terms, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
     summarize_all(funs(sd)) %>%
     gather(key = "variable", value = "sd")
-  
+
   scaleFlag <- length(modelFit$preProcess$method$scale)>0
-  
+
   final_result <- as_tibble(result, rownames="variable") %>%
     slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
@@ -158,26 +158,26 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
   tmp_coeffs <- coef(modelFit$finalModel, lambda)
   tmp_newvars <- names(tmp_coeffs[, 1])[which(tmp_coeffs[, 1] != 0)][-1]
   used.dataframe <- eval(modelFit$call$data)
-  
+
   allvars_factor <- enframe(attr(modelFit$terms, "dataClass"), name = "variable", value = "type") %>% filter(type !="numeric") %>% select(variable) %>% unlist %>% unname()
-  
+
   allvars_not_factor <-
     enframe(attr(modelFit$terms, "dataClass"), name = "variable", value = "type") %>% filter(type =="numeric") %>% select(variable) %>% unlist %>% unname()
-  
+
   new_factor <- NULL
   for (i in allvars_factor) {
     temp <- unique(str_extract(tmp_newvars, i))
     temp2 <- temp[!is.na(temp)]
     new_factor <- c(new_factor, temp2)
   }
-  
+
   new_not_factor <- NULL
   for (i in allvars_not_factor) {
     temp <- unique(str_extract(tmp_newvars, i))
     temp2 <- temp[!is.na(temp)]
     new_not_factor <- c(new_not_factor, temp2)
   }
-  
+
   indvars <- c(new_not_factor, new_factor)
   allvars <- attr(modelFit$terms,"term.labels")
   removedvars <- setdiff(allvars, indvars)
@@ -199,13 +199,13 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
 #' @export
 #' @return a plot and the unmodified dataframe created by varimp.logistic()
 #' @examples
-#' varimp.logistic(modelFit) %>% filter(var_imp > 1) %>% varimp.logistic()
+#' varimp.logistic(modelFit) %>% filter(var_imp > 1) %>% plotimp.logistic()
 #' @export
 
-plot.varimp.logistic <- function(.data) {
+plotimp.logistic <- function(.data) {
   plotdata <- .data %>%
     mutate(variable=fct_reorder(variable, var_imp))
-  
+
   print(ggplot(data=plotdata) + geom_col(aes(x = variable, y = var_imp, fill = factor)) +
           scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
   return(.data)
