@@ -10,7 +10,7 @@
 #' varimp.logistic(logit1)
 #' varimp.logistic(logitFit)
 
-varimp.logistic <- function(modelFit) {devtools::document()
+varimp.logistic <- function(modelFit) {
   UseMethod("varimp.logistic", modelFit)
 }
 
