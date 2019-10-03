@@ -39,7 +39,7 @@ varimp.logistic.glm <- function(modelFit) {
     gather(key = "variable", value = "sd")
 
   final_result <- as_tibble(result, rownames="variable") %>%
-    dplyer::slice(-1) %>%
+    dplyr::slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
     mutate(fac = replace_na(fac, 0),
            factor = ifelse(fac==1, "Yes", "No")) %>%
@@ -108,7 +108,7 @@ varimp.logistic.train <- function(modelFit) {
   scaleFlag <- length(modelFit$preProcess$method$scale)>0
 
   final_result <- as_tibble(result, rownames="variable") %>%
-    dplyer::slice(-1) %>%
+    dplyr::slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
     mutate(fac = replace_na(fac, 0),
            factor=ifelse(fac==1, "Yes", "No")) %>%
