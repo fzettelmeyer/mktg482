@@ -1,6 +1,6 @@
 #' A function to report variable importance after glm() or either glm or glmnet through caret
 #'
-#' This function reports standardized odds ratios and ranks variable by importance: The odds ratios of continuous variables are standardized to a two standard deviation change of the variable. The odds ratios for factor variables are left unchanged. This follows the procedure suggested by Andrew Gelman in "Scaling regression inputs by dividing by two standard deviations," Statistics in Medicine (2008), Vol. 27, pp. 2965-2873.
+#' This function reports standardized coefficients and ranks variable by importance: The coefficients of continuous variables are standardized to a two standard deviation change of the variable. The coefficients for factor variables are left unchanged. This follows the procedure suggested by Andrew Gelman in "Scaling regression inputs by dividing by two standard deviations," Statistics in Medicine (2008), Vol. 27, pp. 2965-2873.
 #' The function takes as inputs models created by glm or caret using glm
 #' @param modelFit reguired: estimated/trained glm model
 #' @keywords variable importance
