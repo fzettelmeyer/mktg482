@@ -20,7 +20,8 @@ varimp.logistic.glm <- function(modelFit) {
   if(modelFit$method != "glm.fit") {
     stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
-  result <- coef(summary(modelFit))
+
+  result <- cbind( coef(summary(modelFit)), confint(modelFit) )
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
@@ -35,27 +36,21 @@ varimp.logistic.glm <- function(modelFit) {
 
   logit_temp <- glm(modelFit$formula, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
-    summarize_all(funs(sd)) %>%
+    summarize_all(sd) %>%
     gather(key = "variable", value = "sd")
 
   final_result <- as_tibble(result, rownames="variable") %>%
     dplyr::slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
     mutate(fac = replace_na(fac, 0),
-           factor = ifelse(fac==1, "Yes", "No")) %>%
+           factor = ifelse(fac==1, "Yes", "No"),
+           sign=sign(Estimate)) %>%
     left_join(sd_merge, by = "variable") %>%
-    mutate(var_imp = ifelse(fac==1, exp(abs(Estimate)), exp(abs(Estimate*2*sd))),
-           OR=exp(Estimate),
-           OR_sd=ifelse(fac==1, NA, exp(Estimate*sd))) %>%
-    arrange(-var_imp) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
-           OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
-           OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
-    ) %>%
-    rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
-    mutate(p_value=round(p_value,3))
+    mutate(var_imp = ifelse(fac==1, Estimate, Estimate*2*sd),
+           var_imp_lower = ifelse(fac==1, `2.5 %`, `2.5 %`*2*sd),
+           var_imp_upper = ifelse(fac==1, `97.5 %`, `97.5 %`*2*sd)) %>%
+    arrange(-abs(var_imp)) %>%
+    select(variable, factor, var_imp, var_imp_lower, var_imp_upper)
 
   options(scipen=999, digits =3)
   return(final_result)
@@ -68,14 +63,17 @@ varimp.logistic.train <- function(modelFit) {
     stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
 
+
   if(modelFit$method=="glm"){
-    result <- coef(summary(modelFit$finalModel))
+    glmFlag <- TRUE
+    result <- cbind( coef(summary(modelFit)), confint(modelFit$finalModel) )
     tmp_coeffs <- coef(modelFit$finalModel)
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
   }
 
   if(modelFit$method=="glmnet"){
+    glmFlag <- FALSE
     tmp.fm <- getform.glmnet(modelFit)
     tmp.df <- modelFit$trainingData
     colnames(tmp.df)[1] <- as.character(tmp.fm)[2]
@@ -102,7 +100,7 @@ varimp.logistic.train <- function(modelFit) {
 
   logit_temp <- glm(modelFit$terms, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
-    summarize_all(funs(sd)) %>%
+    summarize_all(sd) %>%
     gather(key = "variable", value = "sd")
 
   scaleFlag <- length(modelFit$preProcess$method$scale)>0
@@ -111,27 +109,28 @@ varimp.logistic.train <- function(modelFit) {
     dplyr::slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
     mutate(fac = replace_na(fac, 0),
-           factor=ifelse(fac==1, "Yes", "No")) %>%
+           factor=ifelse(fac==1, "Yes", "No"),
+           sign=sign(Estimate)) %>%
     left_join(sd_merge, by="variable") %>%
     mutate(var_imp = case_when(
-      scaleFlag == TRUE ~ ifelse(fac==1, exp(abs(Estimate/sd)), exp(abs(Estimate*2))),
-      scaleFlag == FALSE ~ ifelse(fac==1, exp(abs(Estimate)), exp(abs(Estimate*2*sd)))),
-      OR = case_when(
-        scaleFlag == TRUE ~ exp(Estimate/sd),
-        scaleFlag == FALSE ~ exp(Estimate)),
-      OR_sd = case_when(
-        scaleFlag == TRUE ~ ifelse(fac==1, NA, exp(Estimate)),
-        scaleFlag == FALSE ~ ifelse(fac==1, NA, exp(Estimate*sd)))
+      scaleFlag == TRUE ~ ifelse(fac==1, Estimate/sd, Estimate*2),
+      scaleFlag == FALSE ~ ifelse(fac==1, Estimate, Estimate*2*sd) )
     ) %>%
-    arrange(-var_imp) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR-1)*100, - (1-OR)*100),
-           OR_perc=paste0(formatC(temp, format = "f", digits = 1), "%")) %>%
-    mutate(temp=ifelse(Estimate>=0, (OR_sd-1)*100, - (1-OR_sd)*100),
-           OR_sd_perc=ifelse(fac==1, NA, paste0(formatC(temp, format = "f", digits = 1), "%"))
-    ) %>%
-    rename(p_value="Pr(>|z|)") %>%
-    select(variable, var_imp, p_value, factor, OR, OR_perc, sd, OR_sd, OR_sd_perc) %>%
-    mutate(p_value=round(p_value,3))
+    arrange(-abs(var_imp))
+
+  if(glmFlag){
+    final_result <- final_result %>%
+      mutate(var_imp_lower = case_when(
+        scaleFlag == TRUE ~ ifelse(fac==1, `2.5 %`/sd, `2.5 %`*2),
+        scaleFlag == FALSE ~ ifelse(fac==1, `2.5 %`, `2.5 %`*2*sd) ),
+        var_imp_upper = case_when(
+          scaleFlag == TRUE ~ ifelse(fac==1, `97.5 %`/sd, `97.5 %`*2),
+          scaleFlag == FALSE ~ ifelse(fac==1, `97.5 %`, `97.5 %`*2*sd) )) %>%
+      select(variable, factor, var_imp, var_imp_lower, var_imp_upper)
+  }else{
+    final_result <- final_result %>% select(variable, factor, var_imp)
+  }
+
   options(scipen=999, digits =3)
   return(final_result)
 }
@@ -204,10 +203,15 @@ getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
 
 plotimp.logistic <- function(.data) {
   plotdata <- .data %>%
-    mutate(variable=fct_reorder(variable, var_imp))
+    mutate(variable=fct_reorder(variable, abs(var_imp)))
 
-  print(ggplot(data=plotdata) + geom_col(aes(x = variable, y = var_imp, fill = factor)) +
-          scale_y_continuous(expand = expand_scale(add = c(-1,.1)))+coord_flip())
+  temp <-  plotdata %>% arrange(variable) %>% select(var_imp)
+  a <- ifelse(temp >= 0, "black", "red")
+
+  print(ggplot(data=plotdata) +
+          geom_col(aes(x=variable, y=abs(var_imp), fill=factor))  +
+          theme(axis.text.y = element_text(colour = a)) +
+          coord_flip())
   return(.data)
 }
 
