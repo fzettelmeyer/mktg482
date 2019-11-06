@@ -21,7 +21,7 @@ varimp.logistic.glm <- function(modelFit) {
     stop("This function only works when you call glm() or either glm or glmnet through caret")
   }
 
-  result <- cbind( coef(summary(modelFit)), confint(modelFit) )
+  result <- cbind( coef(summary(modelFit)), confint.default(modelFit) )
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
@@ -66,7 +66,7 @@ varimp.logistic.train <- function(modelFit) {
 
   if(modelFit$method=="glm"){
     glmFlag <- TRUE
-    result <- cbind( coef(summary(modelFit)), confint(modelFit$finalModel) )
+    result <- cbind( coef(summary(modelFit)), confint.default(modelFit$finalModel) )
     tmp_coeffs <- coef(modelFit$finalModel)
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
