@@ -22,6 +22,7 @@ varimp.logistic.glm <- function(modelFit) {
   }
 
   result <- cbind( coef(summary(modelFit)), confint.default(modelFit) )
+  colnames(result)[4] <- c("p_value")
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
@@ -50,7 +51,7 @@ varimp.logistic.glm <- function(modelFit) {
            var_imp_lower = ifelse(fac==1, `2.5 %`, `2.5 %`*2*sd),
            var_imp_upper = ifelse(fac==1, `97.5 %`, `97.5 %`*2*sd)) %>%
     arrange(-abs(var_imp)) %>%
-    select(variable, factor, var_imp, var_imp_lower, var_imp_upper)
+    select(variable, factor, var_imp, var_imp_lower, var_imp_upper, p_value)
 
   options(scipen=999, digits =3)
   return(final_result)
@@ -67,6 +68,7 @@ varimp.logistic.train <- function(modelFit) {
   if(modelFit$method=="glm"){
     glmFlag <- TRUE
     result <- cbind( coef(summary(modelFit)), confint.default(modelFit$finalModel) )
+    colnames(result)[4] <- c("p_value")
     tmp_coeffs <- coef(modelFit$finalModel)
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
@@ -84,6 +86,7 @@ varimp.logistic.train <- function(modelFit) {
     modelFit <- tmp.lr
 
     result <- coef(summary(modelFit))
+    colnames(result)[4] <- c("p_value")
     result[,4] <- NA
     tmp_coeffs <- coef(modelFit)
     tmp_newvars <- names(tmp_coeffs)[-1]
@@ -126,7 +129,7 @@ varimp.logistic.train <- function(modelFit) {
         var_imp_upper = case_when(
           scaleFlag == TRUE ~ ifelse(fac==1, `97.5 %`/sd, `97.5 %`*2),
           scaleFlag == FALSE ~ ifelse(fac==1, `97.5 %`, `97.5 %`*2*sd) )) %>%
-      select(variable, factor, var_imp, var_imp_lower, var_imp_upper)
+      select(variable, factor, var_imp, var_imp_lower, var_imp_upper, p_value)
   }else{
     final_result <- final_result %>% select(variable, factor, var_imp)
   }
