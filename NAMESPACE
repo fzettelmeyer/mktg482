@@ -2,8 +2,9 @@
 
 S3method(varimp.logistic,glm)
 S3method(varimp.logistic,train)
-export(QiniBarPlot2)
-export(QiniCurve2)
+export(QiniBarPlot)
+export(QiniCurve)
+export(QiniTable)
 export(gainsplot)
 export(get.estimable.coefficients)
 export(getform.glmnet)
