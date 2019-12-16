@@ -123,7 +123,7 @@ varimp.logistic.train <- function(modelFit) {
 
   if(glmFlag){
     final_result <- final_result %>%
-      mutate(p_value=signif(p_value,3),
+      mutate(p_value=round(p_value,3),
              var_imp_lower = case_when(
         scaleFlag == TRUE ~ ifelse(fac==1, `2.5 %`/sd, `2.5 %`*2),
         scaleFlag == FALSE ~ ifelse(fac==1, `2.5 %`, `2.5 %`*2*sd) ),
