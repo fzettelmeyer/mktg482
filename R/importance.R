@@ -43,7 +43,8 @@ varimp.logistic.glm <- function(modelFit) {
   final_result <- as_tibble(result, rownames="variable") %>%
     dplyr::slice(-1) %>%
     left_join(factor_merge,by = "variable") %>%
-    mutate(fac = replace_na(fac, 0),
+    mutate(p_value=round(p_value,3),
+           fac = replace_na(fac, 0),
            factor = ifelse(fac==1, "Yes", "No"),
            sign=sign(Estimate)) %>%
     left_join(sd_merge, by = "variable") %>%
