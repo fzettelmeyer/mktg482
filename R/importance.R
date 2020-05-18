@@ -18,7 +18,7 @@ varimp.logistic <- function(modelFit) {
 #' @describeIn varimp.logistic Method for glm()
 varimp.logistic.glm <- function(modelFit) {
   if(modelFit$method != "glm.fit") {
-    stop("This function only works when you call glm() or either glm or glmnet through caret")
+      stop("This function only works when you call glm() or caret train() with method set to glm or glmnet.")
   }
 
   result <- cbind( coef(summary(modelFit)), confint.default(modelFit) )
@@ -26,15 +26,19 @@ varimp.logistic.glm <- function(modelFit) {
   tmp_coeffs <- coef(modelFit)
   tmp_newvars <- names(tmp_coeffs)[-1]
   used.dataframe <- eval(modelFit$call$data)
+  if(is.null(used.dataframe)){  
+      stop("This function only works when you explicitly pass in data as a data.frame when you call glm() or caret train() with method set to glm or glmnet.")
+  }
 
-  allvars_factor <-
-    c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
-  allvars_factor2 <-
-    paste(allvars_factor, collapse= "|" )
+  is.01 <- function(x){ su <- sort(unique(x)); length(su)==2 && all(su==c(0,1)) }
+  allvars_factor <- c(names(used.dataframe[sapply(used.dataframe, is.factor)]), 
+	  				  names(used.dataframe[sapply(used.dataframe, is.character)]),
+	  				  names(used.dataframe[sapply(used.dataframe, is.01)]) )
+  allvars_factor2 <- paste(allvars_factor, collapse= "|" )
 
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
-
+	
   logit_temp <- glm(modelFit$formula, data=used.dataframe, family=binomial, x=TRUE)
   sd_merge <- as_tibble(logit_temp$x) %>%
     summarize_all(sd) %>%
@@ -62,9 +66,8 @@ varimp.logistic.glm <- function(modelFit) {
 #' @describeIn varimp.logistic Method for either glm or glmnet in caret. This works regardless of whether the data is pre-processed with "scale"
 varimp.logistic.train <- function(modelFit) {
   if( !(modelFit$method %in% c("glm","glmnet")) ) {
-    stop("This function only works when you call glm() or either glm or glmnet through caret")
+      stop("This function only works when you call glm() or caret train() with method set to glm or glmnet.")
   }
-
 
   if(modelFit$method=="glm"){
     glmFlag <- TRUE
@@ -93,11 +96,16 @@ varimp.logistic.train <- function(modelFit) {
     tmp_newvars <- names(tmp_coeffs)[-1]
     used.dataframe <- eval(modelFit$call$data)
   }
-
-  allvars_factor <-
-    c(names(used.dataframe[sapply(used.dataframe, is.factor)]), names(used.dataframe[sapply(used.dataframe, is.character)]))
-  allvars_factor2 <-
-    paste(allvars_factor, collapse= "|" )
+  
+  if(is.null(used.dataframe)){  
+      stop("This function only works when you explicitly pass in data as a data.frame when you call glm() or caret train() with method set to glm or glmnet.")
+  }
+  
+  is.01 <- function(x){ su <- sort(unique(x)); length(su)==2 && all(su==c(0,1)) }
+  allvars_factor <- c(names(used.dataframe[sapply(used.dataframe, is.factor)]), 
+	  				  names(used.dataframe[sapply(used.dataframe, is.character)]),
+	  				  names(used.dataframe[sapply(used.dataframe, is.01)]) )
+  allvars_factor2 <- paste(allvars_factor, collapse= "|" )
 
   factor_merge <- enframe(tmp_newvars[grepl(allvars_factor2,tmp_newvars)], name = "fac", value = "variable") %>%
     mutate(fac=1)
@@ -157,12 +165,15 @@ varimp.logistic.train <- function(modelFit) {
 
 getform.glmnet <- function(modelFit, lambda = modelFit$bestTune$lambda) {
   if(modelFit$method != "glmnet") {
-    stop("This function only works when you call glmnet through caret")
+      stop("This function only works when you call caret train() with method set to glmnet.")
   }
   tmp_coeffs <- coef(modelFit$finalModel, lambda)
   tmp_newvars <- names(tmp_coeffs[, 1])[which(tmp_coeffs[, 1] != 0)][-1]
   used.dataframe <- eval(modelFit$call$data)
-
+  if(is.null(used.dataframe)){  
+      stop("This function only works when you explicitly pass in data as a data.frame when you call caret train() with method set to glmnet.")
+  }
+  
   allvars_factor <- enframe(attr(modelFit$terms, "dataClass"), name = "variable", value = "type") %>% filter(type !="numeric") %>% select(variable) %>% unlist %>% unname()
 
   allvars_not_factor <-
