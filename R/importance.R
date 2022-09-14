@@ -28,7 +28,7 @@ varimp.logistic.glm <- function(modelFit) {
   used.dataframe <- eval(modelFit$call$data)
   if(is.null(used.dataframe)){  
       stop("This function only works when you explicitly pass in data as a data.frame when you call glm() or caret train() with method set to glm or glmnet.")
-  }
+  }F
 
   is.01 <- function(x){ su <- sort(unique(x)); length(su)==2 && all(su==c(0,1)) }
   allvars_factor <- c(names(used.dataframe[sapply(used.dataframe, is.factor)]), 
